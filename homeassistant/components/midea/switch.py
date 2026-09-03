@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, override
 
 from midealocal.const import DeviceType
+from midealocal.devices.a1 import DeviceAttributes as A1Attributes
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.core import HomeAssistant
@@ -22,6 +23,11 @@ class MideaSwitchEntityDescription(SwitchEntityDescription):
 
 
 SWITCHES: list[MideaSwitchEntityDescription] = [
+    MideaSwitchEntityDescription(
+        key=A1Attributes.pump,
+        translation_key="water_pump",
+        models=[DeviceType.A1],
+    ),
     MideaSwitchEntityDescription(
         key="aux_heating",
         translation_key="aux_heating",

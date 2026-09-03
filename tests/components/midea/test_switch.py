@@ -4,6 +4,7 @@ from collections.abc import Callable
 from unittest.mock import patch
 
 from midealocal.const import DeviceType
+from midealocal.devices.a1 import DeviceAttributes as A1Attributes
 from midealocal.devices.ac import DeviceAttributes as ACAttributes
 from midealocal.devices.c3 import DeviceAttributes as C3Attributes
 from midealocal.devices.cc import DeviceAttributes as CCAttributes
@@ -177,6 +178,43 @@ async def test_ac_switch_services(
         [("set_attribute", ACAttributes.aux_heating, False)],
         device,
     )
+
+
+async def test_a1_water_pump_services(
+    hass: HomeAssistant,
+    mock_config_entry: Callable[[DummyDevice], MockConfigEntry],
+) -> None:
+    """Test the A1 dehumidifier water-pump switch."""
+    device = DummyDevice(
+        DeviceType.A1,
+        attributes={A1Attributes.pump: False},
+    )
+    config_entry = mock_config_entry(device)
+    with patch("homeassistant.components.midea._PLATFORMS", [Platform.SWITCH]):
+        await setup_integration(hass, config_entry, device)
+
+    entity_entry = entity_entries(hass, config_entry)[f"{TEST_DEVICE_ID}_pump"]
+
+    assert (state := hass.states.get(entity_entry.entity_id)) is not None
+    assert state.state == "off"
+
+    await _assert_service_call(
+        hass,
+        entity_entry.entity_id,
+        SERVICE_TURN_ON,
+        [("set_attribute", A1Attributes.pump, True)],
+        device,
+    )
+    assert hass.states[entity_entry.entity_id].state == "on"
+
+    await _assert_service_call(
+        hass,
+        entity_entry.entity_id,
+        SERVICE_TURN_OFF,
+        [("set_attribute", A1Attributes.pump, False)],
+        device,
+    )
+    assert hass.states[entity_entry.entity_id].state == "off"
 
 
 async def test_switch_unknown_when_attribute_becomes_non_bool(

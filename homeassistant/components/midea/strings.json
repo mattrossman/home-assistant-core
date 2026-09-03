@@ -693,6 +693,9 @@
       },
       "zone2_curve": {
         "name": "Zone 2 curve"
+      },
+      "water_pump": {
+        "name": "Water pump"
       }
     },
     "time": {
