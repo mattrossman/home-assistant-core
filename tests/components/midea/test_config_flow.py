@@ -6,12 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from midealocal.const import DeviceType, ProtocolVersion
 from midealocal.device import MideaDevice
+from midealocal.exceptions import CloudLoginError, NoDeviceRegistered
 import pytest
 
 from homeassistant.components.midea.config_flow import (
     DEFAULT_CLOUD,
     LOGIN_MODE_ACCOUNT,
     LOGIN_MODE_PRESET,
+    MideaConfigFlow,
     _select_and_connect,
 )
 from homeassistant.components.midea.const import (
@@ -1219,7 +1221,7 @@ async def test_login_credentials_step_login_failed_sets_error(
     assert result["step_id"] == "login_credentials"
 
     cloud = MagicMock()
-    cloud.login = AsyncMock(return_value=False)
+    cloud.login = AsyncMock(side_effect=CloudLoginError(3102, "invalid credentials"))
 
     with (
         patch(
@@ -1591,6 +1593,21 @@ async def test_manual_step_v3_missing_token_key_unsupported_device_type(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "manually"
     assert result["errors"] == {"base": "token_unavailable"}
+
+
+async def test_check_key_from_cloud_unregistered_device(
+    hass: HomeAssistant,
+) -> None:
+    """Test unregistered cloud devices are reported as unavailable keys."""
+    flow = MideaConfigFlow()
+    flow.hass = hass
+    flow.devices = {TEST_DEVICE_ID: {}}
+    flow.cloud = MagicMock()
+    flow.cloud.get_cloud_keys = AsyncMock(
+        side_effect=NoDeviceRegistered(3201, "device is not registered")
+    )
+
+    assert await flow._check_key_from_cloud(TEST_DEVICE_ID) == {}
 
 
 async def test_manually_flow_success(hass: HomeAssistant) -> None:
@@ -2016,7 +2033,7 @@ async def test_auth_method_preset_login_failed(hass: HomeAssistant) -> None:
     assert result["step_id"] == "auth_method"
 
     cloud = MagicMock()
-    cloud.login = AsyncMock(return_value=False)
+    cloud.login = AsyncMock(side_effect=CloudLoginError(3102, "invalid credentials"))
 
     with (
         patch(

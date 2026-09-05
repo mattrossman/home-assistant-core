@@ -14,6 +14,7 @@ from midealocal.const import DeviceType, ProtocolVersion
 from midealocal.device import MideaDevice
 from midealocal.devices import device_selector
 from midealocal.discover import discover
+from midealocal.exceptions import CloudLoginError, NoDeviceRegistered
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
@@ -386,7 +387,16 @@ class MideaConfigFlow(ConfigFlow, domain=DOMAIN):
                 password,
             )
         # check cloud login after self.cloud exist
-        if await self.cloud.login():
+        try:
+            logged_in = await self.cloud.login()
+        except CloudLoginError as err:
+            LOGGER.debug(
+                "Cloud login failed for %s with error code %s",
+                cloud_name,
+                err.code,
+            )
+            return False
+        if logged_in:
             LOGGER.debug(
                 "Cloud login succeeded for %s",
                 cloud_name,
@@ -410,7 +420,15 @@ class MideaConfigFlow(ConfigFlow, domain=DOMAIN):
         assert self.cloud is not None
 
         # get device token/key from cloud, plus the well-known default keys
-        keys = await self.cloud.get_cloud_keys(appliance_id)
+        try:
+            keys = await self.cloud.get_cloud_keys(appliance_id)
+        except NoDeviceRegistered as err:
+            LOGGER.debug(
+                "No cloud credentials available for device %s (error code %s)",
+                appliance_id,
+                err.code,
+            )
+            return {}
         if default_key:
             keys = {**keys, **(await MideaCloud.get_default_keys())}
         error = "connect_error"
